@@ -210,7 +210,7 @@ export function classifyStatus(totalScore: number): {
 } {
   if (totalScore >= 70) {
     return { status: 'teridentifikasi', label: 'Teridentifikasi', color: '#10b981' };
-  } else if (totalScore >= 40) {
+  } else if (totalScore >= 30) {
     return { status: 'perlu_verifikasi', label: 'Perlu Verifikasi Manual', color: '#f59e0b' };
   } else {
     return { status: 'tidak_ditemukan', label: 'Tidak Ditemukan', color: '#ef4444' };
