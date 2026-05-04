@@ -33,15 +33,16 @@
 Sistem Pelacakan Alumni UMM adalah aplikasi web yang dirancang untuk membantu admin kampus dalam melacak, mengelola, dan memverifikasi data alumni Universitas Muhammadiyah Malang. Sistem ini mampu mengelola **142.292 data alumni** dengan fitur pelacakan otomatis dan scoring berbasis multi-sumber.
 
 ### Fitur Utama
-1. **Dashboard Admin** — Ringkasan statistik real-time (total alumni, teridentifikasi, perlu verifikasi, tidak ditemukan)
+1. **Dashboard Admin** — Ringkasan statistik real-time dengan 5 stat cards (Total, Teridentifikasi, Perlu Verifikasi, Tidak Ditemukan, Belum Dilacak)
 2. **Data Alumni** — Tabel 142.292 alumni dengan server-side pagination, pencarian debounced, dan import Excel
-3. **Pelacakan Otomatis** — Bulk auto-tracking menggunakan prediksi sosial media, email UMM, dan estimasi pekerjaan
-4. **Detail Pelacakan** — Form input data kontak & pekerjaan per alumni dengan live score preview
-5. **Bantuan Pencarian** — 13 link otomatis ke Google Scholar, LinkedIn, Instagram, Facebook, dll
-6. **Scoring System** — Skor 0-100 (PDDIKTI 0-60 + Data Pelacakan 0-40)
-7. **Verifikasi PDDIKTI** — Integrasi API PDDIKTI untuk verifikasi data akademik
-8. **Survey Alumni** — Halaman publik untuk alumni mengisi/koreksi data mereka sendiri via NIM
-9. **Riwayat Pelacakan** — Timeline semua perubahan data per alumni
+3. **Pelacakan Otomatis (Serper.dev API)** — Bulk auto-tracking menggunakan Google Search API untuk mencari alumni di LinkedIn, Instagram, Google Scholar, dan platform lainnya
+4. **Pencarian Individual** — Tombol "Cari Otomatis" di detail alumni untuk mencari info satu per satu
+5. **Detail Pelacakan** — Form input data kontak & pekerjaan per alumni dengan live score preview
+6. **Bantuan Pencarian** — 13 link otomatis ke Google Scholar, LinkedIn, Instagram, Facebook, dll
+7. **Scoring System** — Skor 0-100 (PDDIKTI 0-60 + Data Pelacakan 0-40)
+8. **Verifikasi PDDIKTI** — Integrasi API PDDIKTI untuk verifikasi data akademik
+9. **Survey Alumni** — Halaman publik untuk alumni mengisi/koreksi data mereka sendiri via NIM
+10. **Riwayat Pelacakan** — Timeline semua perubahan data per alumni
 
 ---
 
@@ -53,6 +54,7 @@ Sistem Pelacakan Alumni UMM adalah aplikasi web yang dirancang untuk membantu ad
 | TypeScript | Bahasa Pemrograman |
 | Supabase | Database PostgreSQL + Auth |
 | Vercel | Hosting & Deployment |
+| **Serper.dev API** | **Google Search API untuk pelacakan alumni otomatis** |
 | PDDIKTI API | Verifikasi Data Akademik |
 | XLSX.js | Parsing File Excel |
 
@@ -164,11 +166,51 @@ Pengujian dilakukan berdasarkan aspek kualitas perangkat lunak yang telah ditent
 | Metrik | Nilai |
 |--------|-------|
 | Total Data Alumni | 142.292 |
-| Alumni Teridentifikasi | 0 (butuh verifikasi manual) |
-| Alumni Perlu Verifikasi | 139.792 |
-| Alumni Belum Dilacak | 2.500 |
+| Alumni Dilacak via API | 2.500 (limit free tier) |
 | Waktu Import Data | ~61 detik |
-| Waktu Bulk Tracking | ~10 menit |
+| Waktu Bulk Tracking (2.500) | ~5-15 menit |
+
+---
+
+## 🔍 Integrasi Serper.dev Google Search API
+
+### Apa itu Serper.dev?
+Serper.dev adalah Google Search API yang menyediakan hasil pencarian Google dalam format JSON terstruktur. API ini digunakan untuk **mencari informasi alumni secara otomatis** di berbagai platform seperti LinkedIn, Instagram, Google Scholar, ResearchGate, dan lainnya.
+
+### Cara Kerja
+1. Sistem mengirim query pencarian ke Serper.dev API dengan nama alumni + universitas
+2. API mengembalikan hasil pencarian Google dalam format JSON
+3. Sistem mengekstrak data dari hasil pencarian:
+   - **LinkedIn URL** → profil profesional alumni
+   - **Instagram/Facebook** → akun sosial media
+   - **Email** → alamat email yang ditemukan di snippet
+   - **Tempat Bekerja & Posisi** → dari title LinkedIn
+4. Data yang diekstrak otomatis mengisi database dan menghitung confidence score
+5. Status alumni diperbarui berdasarkan kualitas data yang ditemukan
+
+### Endpoint API
+
+| Endpoint | Method | Fungsi |
+|----------|--------|--------|
+| `/api/search` | POST | Pencarian individual per alumni |
+| `/api/search/bulk` | POST | Pencarian massal (batch 50 alumni) |
+| `/api/alumni/reset-status` | POST | Reset status untuk pelacakan ulang |
+
+### ⚠️ Batasan (Limitation)
+
+> **Dalam proyek ini, hanya 2.500 alumni yang dilacak menggunakan Serper.dev API** karena keterbatasan dana (free tier Serper.dev memberikan 2.500 query gratis).
+>
+> Dalam **penerapan aslinya (production)**, batasan ini dapat dihilangkan dengan:
+> 1. **Upgrade API key** Serper.dev ke paket berbayar ($50 untuk 50.000 query)
+> 2. Atau menggunakan **pay-as-you-go model** — sekitar $1 per 1.000 query
+> 3. Sehingga seluruh **142.292 alumni** dapat dilacak dengan biaya ~$142
+
+### Konfigurasi
+```bash
+# Tambahkan di .env.local
+SERPER_API_KEY=your_serper_api_key_here
+```
+Daftar gratis di [serper.dev](https://serper.dev) untuk mendapatkan 2.500 query gratis (tanpa kartu kredit).
 
 ---
 
@@ -199,15 +241,18 @@ Buka [http://localhost:3000](http://localhost:3000) di browser.
 ```
 alumni-tracker/
 ├── app/
-│   ├── page.tsx                    # Dashboard
+│   ├── page.tsx                    # Dashboard (5 stat cards + bulk search)
 │   ├── data-alumni/page.tsx        # Halaman Data Alumni + Import
 │   ├── hasil-pelacakan/
 │   │   ├── page.tsx                # Daftar Hasil Pelacakan
-│   │   └── [id]/page.tsx           # Detail Pelacakan per Alumni
+│   │   └── [id]/page.tsx           # Detail Pelacakan + Auto Search
 │   ├── survey/page.tsx             # Survey Alumni (Publik)
 │   ├── api/
 │   │   ├── alumni/import/route.ts  # API Import Excel
-│   │   └── pddikti/search/route.ts # API Verifikasi PDDIKTI
+│   │   ├── alumni/reset-status/route.ts  # API Reset Status
+│   │   ├── pddikti/search/route.ts # API Verifikasi PDDIKTI
+│   │   ├── search/route.ts         # API Pencarian Individual (Serper.dev)
+│   │   └── search/bulk/route.ts    # API Bulk Search (Serper.dev)
 │   ├── layout.tsx                  # Root Layout
 │   └── globals.css                 # Global Styles
 ├── components/
@@ -217,6 +262,7 @@ alumni-tracker/
 │   └── Sidebar.tsx                 # Sidebar Navigation
 ├── lib/
 │   ├── supabase.ts                 # Supabase Client & Types
+│   ├── serper.ts                   # Serper.dev API Wrapper & Parser
 │   ├── scoring.ts                  # Algoritma Scoring
 │   ├── query-generator.ts          # Generator Query Pencarian
 │   └── auth.tsx                    # Authentication Context
@@ -233,7 +279,9 @@ alumni-tracker/
 ## 📝 Catatan
 
 - Sistem ini dikembangkan sebagai tugas **Daily Project 4** mata kuliah **Rekayasa Kebutuhan** kelas D.
-- Data sosial media yang di-generate secara otomatis merupakan **prediksi** berdasarkan pola nama alumni. Alumni dapat mengoreksi data mereka melalui halaman Survey.
+- Pelacakan otomatis menggunakan **Serper.dev Google Search API** untuk mencari informasi alumni di berbagai platform. Hanya **2.500 alumni yang dilacak** karena keterbatasan dana (free tier). Dalam penerapan aslinya, limit ini bisa dihilangkan dengan upgrade API key.
+- Data yang ditemukan oleh API merupakan hasil pencarian otomatis dan mungkin memerlukan **verifikasi manual** oleh admin.
+- Alumni dapat mengoreksi data mereka melalui halaman **Survey Publik** (`/survey`).
 - Scoring system dirancang agar bobot verifikasi PDDIKTI (60%) lebih tinggi dari data pelacakan (40%) karena data akademik memiliki keakuratan lebih tinggi.
 
 ---

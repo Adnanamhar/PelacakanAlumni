@@ -19,6 +19,8 @@ export default function DetailPelacakanPage() {
   const [activeTab, setActiveTab] = useState('data');
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
+  const [autoSearching, setAutoSearching] = useState(false);
+  const [autoSearchResult, setAutoSearchResult] = useState<Record<string, unknown> | null>(null);
 
   // Form state for alumni contact/employment data
   const [form, setForm] = useState({
@@ -108,6 +110,42 @@ export default function DetailPelacakanPage() {
     setSaving(false);
   };
 
+  const handleAutoSearch = async () => {
+    if (!alumni) return;
+    setAutoSearching(true);
+    setAutoSearchResult(null);
+    try {
+      const res = await fetch('/api/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nama: alumni.nama_lulusan,
+          prodi: alumni.program_studi,
+          tahun_lulus: alumni.tanggal_lulus ? new Date(alumni.tanggal_lulus).getFullYear().toString() : undefined,
+        }),
+      });
+      const data = await res.json();
+      setAutoSearchResult(data);
+      // Auto-fill form with extracted data
+      if (data.extracted) {
+        const ext = data.extracted as Record<string, string>;
+        setForm(prev => ({
+          ...prev,
+          linkedin_url: ext.linkedin_url || prev.linkedin_url,
+          instagram_url: ext.instagram_url || prev.instagram_url,
+          facebook_url: ext.facebook_url || prev.facebook_url,
+          email: ext.email || prev.email,
+          tempat_bekerja: ext.tempat_bekerja || prev.tempat_bekerja,
+          posisi: ext.posisi || prev.posisi,
+          alamat_bekerja: ext.lokasi || prev.alamat_bekerja,
+        }));
+      }
+    } catch {
+      setAutoSearchResult({ error: 'Gagal melakukan pencarian' });
+    }
+    setAutoSearching(false);
+  };
+
   const totalScoreResult = alumni ? calculateTotalScore(alumni.pddikti_score || 0, form) : null;
 
   if (loading) {
@@ -192,6 +230,38 @@ export default function DetailPelacakanPage() {
           {/* DATA INPUT TAB */}
           {activeTab === 'data' && (
             <div className="card-body">
+              {/* Auto Search Section */}
+              <div style={{ background: '#F0F9FF', border: '1px solid #BAE6FD', borderRadius: 12, padding: 16, marginBottom: 24 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <h4 style={{ fontSize: 14, fontWeight: 700, color: '#0369A1' }}>🔍 Pencarian Otomatis (Serper.dev)</h4>
+                  <button className="btn btn-primary btn-sm" onClick={handleAutoSearch} disabled={autoSearching}>
+                    {autoSearching ? <><span className="spinner" /> Mencari...</> : '🔍 Cari Otomatis'}
+                  </button>
+                </div>
+                <p style={{ fontSize: 12, color: '#64748B', marginBottom: 8 }}>
+                  Cari informasi alumni secara otomatis di Google, LinkedIn, Instagram, dan lainnya. Data yang ditemukan akan otomatis mengisi form di bawah.
+                </p>
+                {autoSearchResult && !autoSearchResult.error && (
+                  <div style={{ marginTop: 12, fontSize: 13 }}>
+                    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 8 }}>
+                      <span className="badge badge-info">📊 {(autoSearchResult.total_results as number) || 0} hasil ditemukan</span>
+                      <span className="badge badge-info">Status: {autoSearchResult.suggested_status as string}</span>
+                      <span className="badge badge-info">Score: +{autoSearchResult.suggested_score as number}</span>
+                    </div>
+                    {(autoSearchResult.results as Array<Record<string, unknown>>)?.slice(0, 5).map((r: Record<string, unknown>, i: number) => (
+                      <div key={i} style={{ padding: 8, background: 'white', borderRadius: 8, marginBottom: 6, border: '1px solid #E2E8F0' }}>
+                        <div style={{ fontWeight: 600, fontSize: 12 }}>{r.sumber as string}</div>
+                        <a href={r.link as string} target="_blank" rel="noopener noreferrer" style={{ color: '#3B82F6', fontSize: 12 }}>{(r.link as string)?.substring(0, 60)}...</a>
+                        <div style={{ fontSize: 11, color: '#64748B', marginTop: 2 }}>{(r.snippet as string)?.substring(0, 120)}...</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {autoSearchResult && 'error' in autoSearchResult && autoSearchResult.error !== undefined && (
+                  <div style={{ color: '#EF4444', fontSize: 13, marginTop: 8 }}>❌ {String(autoSearchResult.error)}</div>
+                )}
+              </div>
+
               <p style={{ fontSize: 13, color: '#64748B', marginBottom: 20 }}>
                 Masukkan data alumni yang ditemukan. Setiap field yang terisi akan menambah skor. URL sosial media harus berupa link langsung ke profil (bukan ke pencarian Google).
               </p>
