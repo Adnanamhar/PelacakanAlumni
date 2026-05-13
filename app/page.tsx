@@ -47,7 +47,7 @@ export default function HomePage() {
       // Fetch paginated data
       let query = supabase.from('alumni').select('*', { count: 'exact' })
         .order('updated_at', { ascending: false });
-      
+
       if (activeTab !== 'semua') {
         query = query.eq('status_pelacakan', activeTab);
       }
@@ -96,7 +96,7 @@ export default function HomePage() {
     try {
       while (totalProcessed < maxTotal) {
         const batchSize = Math.min(50, maxTotal - totalProcessed);
-        
+
         setBulkMessage(`⏳ Mencari batch ${Math.floor(offset / 50) + 1}... (${totalProcessed}/${maxTotal} alumni)`);
 
         const res = await fetch('/api/search/bulk', {
@@ -339,7 +339,7 @@ export default function HomePage() {
                         <td style={{ fontWeight: 600 }}>{a.nama_lulusan}</td>
                         <td>{a.nim}</td>
                         <td>{a.program_studi}</td>
-                        <td>{a.tanggal_lulus ? new Date(a.tanggal_lulus).getFullYear() : '-'}</td>
+                        <td>{a.tanggal_lulus && !isNaN(new Date(a.tanggal_lulus).getTime()) ? new Date(a.tanggal_lulus).getFullYear() : '-'}</td>
                         <td>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <div className="score-bar" style={{ width: 60 }}>
@@ -348,7 +348,7 @@ export default function HomePage() {
                                 style={{ width: `${a.confidence_score}%` }}
                               />
                             </div>
-                            <span style={{ fontSize: 12, fontWeight: 600 }}>{a.confidence_score}</span>
+                            <span style={{ fontSize: 12, fontWeight: 600 }}>{a.confidence_score ?? 0}</span>
                           </div>
                         </td>
                         <td>{getStatusBadge(a.status_pelacakan)}</td>

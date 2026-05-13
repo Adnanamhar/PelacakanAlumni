@@ -204,14 +204,6 @@ Serper.dev adalah Google Search API yang menyediakan hasil pencarian Google dala
 > 1. **Upgrade API key** Serper.dev ke paket berbayar ($50 untuk 50.000 query)
 > 2. Atau menggunakan **pay-as-you-go model** — sekitar $1 per 1.000 query
 > 3. Sehingga seluruh **142.292 alumni** dapat dilacak dengan biaya ~$142
-
-### Konfigurasi
-```bash
-# Tambahkan di .env.local
-SERPER_API_KEY=your_serper_api_key_here
-```
-Daftar gratis di [serper.dev](https://serper.dev) untuk mendapatkan 2.500 query gratis (tanpa kartu kredit).
-
 ---
 
 ## 🔧 Cara Menjalankan Lokal
